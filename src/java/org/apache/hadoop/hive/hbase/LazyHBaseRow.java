@@ -117,36 +117,45 @@ public class LazyHBaseRow extends LazyStruct {
    * @return  The value of the field
    */
   private Object uncheckedGetField(int fieldID) {
-    if (!getFieldInited()[fieldID]) {
-      getFieldInited()[fieldID] = true;
-      
-      ByteArrayRef ref = null;
-      
-      String columnName = hbaseColumns.get(fieldID);
-      if (columnName.equals(HBaseSerDe.HBASE_KEY_COL)) {
-        ref = new ByteArrayRef();
-        ref.setData(rowResult.getRow());
-      } else {
-        if (columnName.endsWith(":")) {
-          // it is a column family
-          ((LazyHBaseCellMap) getFields()[fieldID]).init(
-            rowResult, columnName);
-        } else {
-          // it is a column
-          if (rowResult.containsKey(columnName)) {
-            ref = new ByteArrayRef();
-            ref.setData(rowResult.get(columnName).getValue());
-          } else {
-            return null;
-          }
-        }
-      }
-      if (ref != null) {
-        getFields()[fieldID].init(ref, 0, ref.getData().length);
-      }
-    }
-    return getFields()[fieldID].getObject();
-  }
+	    if (!getFieldInited()[fieldID]) {
+	      getFieldInited()[fieldID] = true;
+	      
+	      ByteArrayRef ref = null;
+	      String columnName = hbaseColumns.get(fieldID);
+	      if (columnName.equals(HBaseSerDe.HBASE_KEY_COL)) {
+	        ref = new ByteArrayRef();
+	        ref.setData(rowResult.getRow());
+	      } else {
+	        if (columnName.endsWith(":")) {
+	          // it is a column family
+	          ((LazyHBaseCellMap) getFields()[fieldID]).init(
+	            rowResult, columnName);
+	        } 
+	        else if(columnName.endsWith("]")) {
+	        	String newColumnName = columnName.split("\\[")[0];
+	        	if(rowResult.containsKey(newColumnName)) {
+	        		String val = JsonColumnParser.parseJsonInField(columnName,new String(rowResult.get(newColumnName).getValue()));
+	        		ref = new ByteArrayRef();
+	        		ref.setData(val.getBytes());
+	        	}
+	        } else {
+	          // it is a column
+	        
+	          if (rowResult.containsKey(columnName)) {
+	            ref = new ByteArrayRef();
+	            ref.setData(rowResult.get(columnName).getValue());
+	          } else {
+	            return null;
+	          }
+	        }
+	      }
+	      if (ref != null) {
+	        getFields()[fieldID].init(ref, 0, ref.getData().length);
+	      }
+	    }
+	    return getFields()[fieldID].getObject();
+	  }
+
 
   /**
    * Get the values of the fields as an ArrayList.

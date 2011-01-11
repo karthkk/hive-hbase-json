@@ -36,7 +36,6 @@ public class HBaseSplit extends FileSplit implements InputSplit {
     
   public HBaseSplit() {
     super((Path) null, 0, 0, (String[]) null);
-    Thread.dumpStack();
     hbaseColumnMapping = "";
     split = new TableSplit();
   }

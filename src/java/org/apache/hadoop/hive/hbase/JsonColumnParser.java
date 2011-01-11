@@ -1,4 +1,4 @@
-package org.apache.hadoop.hive.hbase.runa;
+package org.apache.hadoop.hive.hbase;
 
 import java.util.ArrayList;
 import java.util.Iterator;
