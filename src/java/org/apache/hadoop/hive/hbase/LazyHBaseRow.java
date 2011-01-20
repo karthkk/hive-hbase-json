@@ -19,23 +19,38 @@ package org.apache.hadoop.hive.hbase;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 
 import org.apache.hadoop.hbase.io.RowResult;
 import org.apache.hadoop.hive.serde2.lazy.ByteArrayRef;
 import org.apache.hadoop.hive.serde2.lazy.LazyFactory;
 import org.apache.hadoop.hive.serde2.lazy.LazyObject;
 import org.apache.hadoop.hive.serde2.lazy.LazyStruct;
+import org.apache.hadoop.hive.serde2.lazy.objectinspector.LazyListObjectInspector;
 import org.apache.hadoop.hive.serde2.lazy.objectinspector.LazyMapObjectInspector;
 import org.apache.hadoop.hive.serde2.lazy.objectinspector.LazySimpleStructObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 
 /**
  * LazyObject for storing an HBase row.  The field of an HBase row can be
  * primitive or non-primitive.
  */
 public class LazyHBaseRow extends LazyStruct {
+	
+
+
   
   /**
    * The HBase columns mapping of the row.
@@ -43,6 +58,7 @@ public class LazyHBaseRow extends LazyStruct {
   private List<String> hbaseColumns;
   private RowResult rowResult;
   private ArrayList<Object> cachedList;
+  
   
   /**
    * Construct a LazyHBaseRow object with the ObjectInspector.
@@ -66,23 +82,28 @@ public class LazyHBaseRow extends LazyStruct {
    * @see LazyStruct#parse()
    */
   private void parse() {
+	  
     if (getFields() == null) {
       List<? extends StructField> fieldRefs =
         ((StructObjectInspector)getInspector()).getAllStructFieldRefs();
       setFields(new LazyObject[fieldRefs.size()]);
       for (int i = 0; i < getFields().length; i++) {
+    	  ObjectInspector fieldObjectInspector = fieldRefs.get(i).getFieldObjectInspector();
         String hbaseColumn = hbaseColumns.get(i);
         if (hbaseColumn.endsWith(":")) {
           // a column family
           getFields()[i] = 
             new LazyHBaseCellMap(
               (LazyMapObjectInspector)
-              fieldRefs.get(i).getFieldObjectInspector());
+              fieldObjectInspector);
           continue;
         }
+        if(fieldObjectInspector instanceof LazyListObjectInspector) {
+        	getFields()[i] = new LazyJsonArray((LazyListObjectInspector)fieldObjectInspector);
+        	continue;
+        }
         
-        getFields()[i] = LazyFactory.createLazyObject(
-          fieldRefs.get(i).getFieldObjectInspector());
+        getFields()[i] = LazyFactory.createLazyObject(fieldObjectInspector);
       }
       setFieldInited(new boolean[getFields().length]);
     }
@@ -133,10 +154,22 @@ public class LazyHBaseRow extends LazyStruct {
 	        } 
 	        else if(columnName.endsWith("]")) {
 	        	String newColumnName = columnName.split("\\[")[0];
+	        	Object val = "";
 	        	if(rowResult.containsKey(newColumnName)) {
-	        		String val = JsonColumnParser.parseJsonInField(columnName,new String(rowResult.get(newColumnName).getValue()));
-	        		ref = new ByteArrayRef();
-	        		ref.setData(val.getBytes());
+        			String jsonString = new String(rowResult.get(newColumnName).getValue());
+					try {
+						JSONObject jso;
+						jso = new JSONObject(new JSONTokener(jsonString));
+						val = extractFromJson(columnName, jso);
+						if(val instanceof JSONArray) {
+							((LazyJsonArray)getFields()[fieldID]).init((JSONArray) val);
+						} else {
+							ref = new ByteArrayRef();
+							ref.setData(val.toString().getBytes());
+						}
+
+					} catch (JSONException e) {
+					}
 	        	}
 	        } else {
 	          // it is a column
@@ -162,6 +195,7 @@ public class LazyHBaseRow extends LazyStruct {
    * @return The values of the fields as an ArrayList.
    */
   public ArrayList<Object> getFieldsAsList() {
+	  
     if (!getParsed()) {
       parse();
     }
@@ -180,5 +214,42 @@ public class LazyHBaseRow extends LazyStruct {
   public Object getObject() {
     return this;
   }
+  
+	private static Pattern keyPatterns = Pattern.compile("\\[(.*?)\\]");
+	
+	
+
+	private static Object extractFromJson(String columnDefn,
+			JSONObject jsonObject) {
+		
+		Object result = null;
+		try {
+			List<String> keys = getKeys(columnDefn);
+			result = extractData(jsonObject, keys);
+		} catch (Exception e) {
+		}
+		
+		return result;
+	}
+
+	private static Object extractData(JSONObject jsonObject, List<String> keys)
+			throws JSONException {
+		Object currentObject = jsonObject;
+		for (Iterator<String> iterator = keys.iterator(); iterator.hasNext();) {
+			String key = (String) iterator.next();
+			if(currentObject!=null && currentObject instanceof JSONObject)
+				currentObject = ((JSONObject)currentObject).get(key);
+		}
+		return currentObject;
+	}
+
+	public static List<String> getKeys(String columnDefn) {
+		Matcher m =  keyPatterns.matcher(columnDefn);
+		List<String> keys = new ArrayList<String>();
+		while(m.find()) {
+			keys.add(m.group(1));
+		}
+		return keys;
+	}
 
 }

@@ -63,7 +63,7 @@ public class HiveHBaseTableInputFormat<K extends ImmutableBytesWritable, V exten
     Reporter reporter) throws IOException {
 
     HBaseSplit hbaseSplit = (HBaseSplit) split;
-
+    
     byte [] tableNameBytes;
     String hbaseTableName = job.get(HBaseSerDe.HBASE_TABLE_NAME);
     hbaseInputFormat.setHBaseTable(
@@ -168,6 +168,7 @@ public class HiveHBaseTableInputFormat<K extends ImmutableBytesWritable, V exten
     }
     
     public void setHBaseTable(HTable table) {
+    	table.setScannerCaching(500);
       setHTable(table);
     }
   }

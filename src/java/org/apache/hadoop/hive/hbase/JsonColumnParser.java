@@ -13,33 +13,4 @@ import net.sf.json.JSONSerializer;
 
 public class JsonColumnParser {
 
-	private static Pattern keyPatterns = Pattern.compile("\\[(.*?)\\]");
-	
-	public static String parseJsonInField(String columnDefn, String json) {
-		try {
-			JSONObject jsonObject = (JSONObject) JSONSerializer.toJSON( json );
-			List<String> keys = getKeys(columnDefn);
-			JSONObject currentObject = jsonObject;
-			String result = null;
-			for (Iterator<String> iterator = keys.iterator(); iterator.hasNext();) {
-				String key = (String) iterator.next();
-				if(iterator.hasNext() && currentObject!=null)
-					currentObject = currentObject.getJSONObject(key);
-				if(!iterator.hasNext() && currentObject!=null)
-					result = currentObject.getString(key);
-			}
-			return result;
-		} catch (Exception e) {
-		}
-		return "";
-	}
-
-	public static List<String> getKeys(String columnDefn) {
-		Matcher m =  keyPatterns.matcher(columnDefn);
-		List<String> keys = new ArrayList<String>();
-		while(m.find()) {
-			keys.add(m.group(1));
-		}
-		return keys;
-	}
 }

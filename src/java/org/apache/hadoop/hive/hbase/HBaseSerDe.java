@@ -125,10 +125,14 @@ public class HBaseSerDe implements SerDe {
   }
 
   public static List<String> parseColumnMapping(String columnMapping) {
-    String [] columnArray = columnMapping.split(",");
+    return parseColumnNames(columnMapping, true);
+  }
+
+private static List<String> parseColumnNames(String columnMapping, boolean stripNonHbaseParts) {
+	String [] columnArray = columnMapping.split(",");
     List<String> columnList = new ArrayList<String>();
     for (String column : columnArray) {
-		if(column.indexOf("[")>0){
+		if(column.indexOf("[")>0 && stripNonHbaseParts){
 			columnList.add(column.split("\\[")[0]);
 		} else {
 			columnList.add(column);
@@ -140,7 +144,7 @@ public class HBaseSerDe implements SerDe {
       columnList.add(0, HBASE_KEY_COL);
     }
     return columnList;
-  }
+}
   
   public static boolean isSpecialColumn(String hbaseColumnName) {
     return hbaseColumnName.equals(HBASE_KEY_COL);
@@ -157,7 +161,7 @@ public class HBaseSerDe implements SerDe {
       tbl.getProperty(Constants.LIST_COLUMN_TYPES);
     
     // Initialize the hbase column list
-    hbaseColumnNames = parseColumnMapping(hbaseColumnNameProperty);
+    hbaseColumnNames = parseColumnNames(hbaseColumnNameProperty, false);
     iKey = hbaseColumnNames.indexOf(HBASE_KEY_COL);
       
     // Build the type property string if not supplied
