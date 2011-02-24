@@ -99,8 +99,8 @@ public class LazyHBaseRow extends LazyStruct {
           continue;
         }
         if(fieldObjectInspector instanceof LazyListObjectInspector) {
-        	getFields()[i] = new LazyJsonArray((LazyListObjectInspector)fieldObjectInspector);
-        	continue;
+        		getFields()[i] = new LazyJsonArray((LazyListObjectInspector)fieldObjectInspector);
+        		continue;
         }
         
         getFields()[i] = LazyFactory.createLazyObject(fieldObjectInspector);
@@ -155,19 +155,23 @@ public class LazyHBaseRow extends LazyStruct {
 	        else if(columnName.endsWith("]")) {
 	        	String newColumnName = columnName.split("\\[")[0];
 	        	Object val = "";
+	        	if(getField(fieldID) instanceof LazyJsonArray) {
+	        		((LazyJsonArray)getField(fieldID)).init(new JSONArray());
+	        	}
 	        	if(rowResult.containsKey(newColumnName)) {
         			String jsonString = new String(rowResult.get(newColumnName).getValue());
 					try {
 						JSONObject jso;
 						jso = new JSONObject(new JSONTokener(jsonString));
 						val = extractFromJson(columnName, jso);
-						if(val instanceof JSONArray) {
-							((LazyJsonArray)getFields()[fieldID]).init((JSONArray) val);
-						} else {
-							ref = new ByteArrayRef();
-							ref.setData(val.toString().getBytes());
+						if(val != null) {
+							if(val instanceof JSONArray) {
+								((LazyJsonArray)getFields()[fieldID]).init((JSONArray) val);
+							} else {
+								ref = new ByteArrayRef();
+								ref.setData(val.toString().getBytes());
+							}
 						}
-
 					} catch (JSONException e) {
 					}
 	        	}

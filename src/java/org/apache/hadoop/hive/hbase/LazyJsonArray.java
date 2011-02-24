@@ -25,6 +25,9 @@ public class LazyJsonArray extends LazyArray {
 	
 	@Override
 	public void init(ByteArrayRef bytes, int start, int length) {
+		this.parsed = false;
+//		this.jr = null;
+		cachedList = null;
 	    // do nothing
 	}
 	
