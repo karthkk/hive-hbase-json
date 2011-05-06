@@ -160,6 +160,8 @@ public class LazyHBaseRow extends LazyStruct {
 	        	}
 	        	if(rowResult.containsKey(newColumnName)) {
         			String jsonString = new String(rowResult.get(newColumnName).getValue());
+        			ref = new ByteArrayRef();
+        			ref.setData("".getBytes());
 					try {
 						JSONObject jso;
 						jso = new JSONObject(new JSONTokener(jsonString));
@@ -168,7 +170,6 @@ public class LazyHBaseRow extends LazyStruct {
 							if(val instanceof JSONArray) {
 								((LazyJsonArray)getFields()[fieldID]).init((JSONArray) val);
 							} else {
-								ref = new ByteArrayRef();
 								ref.setData(val.toString().getBytes());
 							}
 						}
